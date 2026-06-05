@@ -4,11 +4,33 @@ Tap the home-screen icon → volume slams to 100 % → alarm blares for a
 full 60 seconds. The only way to cut it short is to kill the Shortcut
 from the control-center widget (you still have to dig for it).
 
+The icon is disguised to look like a Safari web link so nobody suspects it.
+
+---
+
+## Disguise: make it look like a link
+
+When you add the shortcut to your home screen, iOS lets you set a custom
+name and icon. Use these to make it look like a browser bookmark.
+
+1. **Name** — use something that reads like a URL or a normal app:
+   - `google.com` &nbsp;·&nbsp; `ESPN` &nbsp;·&nbsp; `Weather` &nbsp;·&nbsp; `News` &nbsp;·&nbsp; `BBC`
+2. **Icon** — tap *Choose Photo* and use a screenshot of the Safari icon,
+   a favicon, or any plain-looking app icon from your camera roll.
+   - Easiest: screenshot the real Safari icon on your home screen, crop it
+     tight, and use that image. It looks identical to a real link.
+3. **Background color** — pick white or the site's brand color so it blends
+   in with your other apps.
+
+Result: the icon sits on your home screen looking exactly like a web
+bookmark. Nobody taps it by accident — but *you* know what it does.
+
 ---
 
 ## iOS Shortcut — step-by-step
 
-Open the **Shortcuts** app, tap **+**, name it `ALARM`.
+Open the **Shortcuts** app, tap **+**, name it `google.com` (or your
+chosen disguise name).
 
 | # | Action | Setting |
 |---|--------|---------|
@@ -21,7 +43,11 @@ Open the **Shortcuts** app, tap **+**, name it `ALARM`.
 
 Steps 4-5 loop 60 times = **~60 seconds** of non-stop alarm at full volume.
 
-Add it to your home screen: tap **⋯ → Add to Home Screen → Add**.
+Add it to your home screen:
+1. Tap **⋯** (top-right) → **Add to Home Screen**
+2. Tap the icon square on the left → **Choose Photo** → pick your fake Safari/link icon
+3. Change the name to `google.com` (or whatever disguise you chose)
+4. Tap **Add**
 
 ---
 
