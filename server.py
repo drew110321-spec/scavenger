@@ -3,7 +3,7 @@
 Hey Claude — iPhone backend server
 
 The iOS Shortcut POSTs your voice request here.
-This calls Claude, emails the result, and returns what Siri should say.
+This calls Gemini (free), emails the result, and returns what Siri should say.
 """
 
 import os
@@ -12,7 +12,7 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-import anthropic
+import google.generativeai as genai
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -20,17 +20,18 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 EMAIL_TO = os.environ["EMAIL_TO"]
 EMAIL_FROM = os.environ["EMAIL_FROM"]
 EMAIL_PASSWORD = os.environ["EMAIL_PASSWORD"]
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
-SERVER_API_KEY = os.environ["SERVER_API_KEY"]  # Secret token stored in your Shortcut
+SERVER_API_KEY = os.environ["SERVER_API_KEY"]
 
 SHORT_LIMIT = 500  # characters — shorter than this gets spoken aloud by Siri
 
-claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
 security = HTTPBearer()
 
 app = FastAPI(docs_url=None, redoc_url=None)
@@ -45,13 +46,9 @@ def require_token(creds: HTTPAuthorizationCredentials = Security(security)) -> N
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def ask_claude(prompt: str) -> str:
-    resp = claude_client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return resp.content[0].text
+def ask_ai(prompt: str) -> str:
+    response = model.generate_content(prompt)
+    return response.text
 
 
 def send_email(subject: str, body: str) -> None:
@@ -79,15 +76,14 @@ def health():
 @app.post("/ask")
 def ask(req: AskRequest, _=Depends(require_token)):
     try:
-        answer = ask_claude(req.prompt)
+        answer = ask_ai(req.prompt)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Claude error: {exc}") from exc
+        raise HTTPException(status_code=500, detail=f"AI error: {exc}") from exc
 
     short = len(answer) <= SHORT_LIMIT
-    # "speak" is what Siri will say — the full answer if short, otherwise a redirect
     speak = answer if short else "Sent to your email."
 
-    subject = f"Claude: {req.prompt[:60]}{'...' if len(req.prompt) > 60 else ''}"
+    subject = f"Assistant: {req.prompt[:60]}{'...' if len(req.prompt) > 60 else ''}"
     body = (
         f"You asked:\n{req.prompt}\n\n"
         f"{'─' * 60}\n\n"
