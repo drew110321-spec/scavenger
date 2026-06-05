@@ -1,0 +1,24 @@
+# Systemd service — runs Hey Claude in the background on Linux
+# Install:
+#   sudo cp claude-assistant.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now claude-assistant
+#
+# Logs: journalctl -u claude-assistant -f
+
+[Unit]
+Description=Hey Claude Voice Assistant
+After=network.target pulseaudio.service sound.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/scavenger
+ExecStart=/usr/bin/python3 /home/%i/scavenger/voice_assistant.py
+Restart=on-failure
+RestartSec=5s
+Environment="DISPLAY=:0"
+Environment="PULSE_SERVER=unix:/run/user/1000/pulse/native"
+
+[Install]
+WantedBy=multi-user.target
