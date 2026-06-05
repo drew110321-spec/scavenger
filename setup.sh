@@ -7,17 +7,19 @@ echo "=== Hey Claude Setup ==="
 # Install system audio libraries
 if command -v apt-get &>/dev/null; then
     echo "→ Installing system deps (Debian/Ubuntu)…"
-    sudo apt-get install -y python3-pip portaudio19-dev python3-pyaudio
+    sudo apt-get install -y python3-pip portaudio19-dev python3-pyaudio espeak espeak-ng
 elif command -v pacman &>/dev/null; then
     echo "→ Installing system deps (Arch)…"
-    sudo pacman -S --noconfirm python-pyaudio portaudio
+    sudo pacman -S --noconfirm python-pyaudio portaudio espeak-ng
 elif command -v brew &>/dev/null; then
     echo "→ Installing system deps (macOS)…"
     brew install portaudio
+    # macOS uses the built-in 'say' command / NSSpeechSynthesizer — nothing extra needed
 elif command -v pkg &>/dev/null; then
     # Termux (Android)
     echo "→ Installing system deps (Termux/Android)…"
-    pkg install -y python portaudio
+    pkg install -y python portaudio termux-api
+    echo "  ⚠  Also install the 'Termux:API' app from F-Droid for voice output"
 fi
 
 echo "→ Installing Python packages…"

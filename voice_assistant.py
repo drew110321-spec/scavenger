@@ -3,12 +3,14 @@
 Hey Claude - Voice Activated Assistant
 
 Say "Hey Claude" to wake it up (works with screen off).
-Speak your request, and Claude's answer is emailed to you.
+Short answers are read aloud. All answers are emailed to you.
 """
 
 import logging
 import os
+import shutil
 import smtplib
+import subprocess
 import threading
 import time
 from datetime import datetime
@@ -17,6 +19,7 @@ from email.mime.text import MIMEText
 from typing import Optional
 
 import anthropic
+import pyttsx3
 import speech_recognition as sr
 from dotenv import load_dotenv
 
@@ -35,6 +38,9 @@ log = logging.getLogger(__name__)
 # Wake word variants to handle common speech-to-text misreadings
 WAKE_WORDS = {"hey claude", "hey clod", "hey cloud", "a claude", "hey claude's"}
 
+# Responses shorter than this get read aloud in addition to being emailed
+SHORT_RESPONSE_LIMIT = 500  # characters
+
 EMAIL_TO = os.environ["EMAIL_TO"]
 EMAIL_FROM = os.environ["EMAIL_FROM"]
 EMAIL_PASSWORD = os.environ["EMAIL_PASSWORD"]
@@ -47,7 +53,29 @@ claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 # Prevent overlapping wake-word responses
 _processing = False
 _lock = threading.Lock()
+_tts_lock = threading.Lock()
 
+
+# ── Text-to-speech ────────────────────────────────────────────────────────────
+
+def speak(text: str) -> None:
+    """Say text aloud. Uses Termux TTS on Android, pyttsx3 everywhere else."""
+    log.info("Speaking: %s", text[:80])
+    try:
+        if shutil.which("termux-tts-speak"):
+            subprocess.run(["termux-tts-speak", text], timeout=120, check=False)
+        else:
+            with _tts_lock:
+                engine = pyttsx3.init()
+                engine.setProperty("rate", 175)   # words per minute
+                engine.say(text)
+                engine.runAndWait()
+                engine.stop()
+    except Exception as exc:
+        log.warning("TTS failed (audio may not be available): %s", exc)
+
+
+# ── Core logic ────────────────────────────────────────────────────────────────
 
 def is_wake_word(text: str) -> bool:
     text = text.lower().strip()
@@ -78,9 +106,16 @@ def send_email(subject: str, body: str) -> None:
 
 def process_command(command: str) -> None:
     log.info("Command: %s", command)
+    speak("On it.")
+
     try:
         answer = ask_claude(command)
         log.info("Claude responded (%d chars)", len(answer))
+
+        if len(answer) <= SHORT_RESPONSE_LIMIT:
+            speak(answer)
+        else:
+            speak("That's a long answer — sending it to your email now.")
 
         subject = f"Claude: {command[:60]}{'...' if len(command) > 60 else ''}"
         body = (
@@ -91,8 +126,11 @@ def process_command(command: str) -> None:
             f"Answered at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         send_email(subject, body)
+        speak("Email sent.")
+
     except Exception as exc:
         log.error("Error processing command: %s", exc)
+        speak("Sorry, something went wrong.")
         try:
             send_email(
                 "Claude Assistant Error",
@@ -101,6 +139,8 @@ def process_command(command: str) -> None:
         except Exception:
             log.error("Also failed to send error email")
 
+
+# ── Listening ─────────────────────────────────────────────────────────────────
 
 def listen_for_command(
     recognizer: sr.Recognizer,
@@ -145,6 +185,8 @@ def wake_callback(recognizer: sr.Recognizer, audio: sr.AudioData) -> None:
         _processing = True
 
     log.info("Wake word detected — listening for command")
+    speak("Listening.")
+
     try:
         mic = sr.Microphone()
         cmd_recognizer = sr.Recognizer()
@@ -157,6 +199,7 @@ def wake_callback(recognizer: sr.Recognizer, audio: sr.AudioData) -> None:
                 target=process_command, args=(command,), daemon=True
             ).start()
         else:
+            speak("I didn't catch that. Try again.")
             log.info("No command received after wake word")
     finally:
         with _lock:
@@ -177,6 +220,8 @@ def main() -> None:
     with mic as source:
         r.adjust_for_ambient_noise(source, duration=2)
     log.info("Calibration done. Say 'Hey Claude' to activate.")
+
+    speak("Hey Claude is ready.")
 
     stop_listening = r.listen_in_background(mic, wake_callback, phrase_time_limit=5)
 
