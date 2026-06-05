@@ -73,6 +73,15 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/alarm")
+def alarm(_=Depends(require_token)):
+    return {
+        "speak": "Alarm started. Buckle up — 60 seconds of pure pain.",
+        "action": "alarm",
+        "duration": 60,
+    }
+
+
 @app.post("/ask")
 def ask(req: AskRequest, _=Depends(require_token)):
     try:
