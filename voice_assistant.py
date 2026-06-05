@@ -185,8 +185,6 @@ def wake_callback(recognizer: sr.Recognizer, audio: sr.AudioData) -> None:
         _processing = True
 
     log.info("Wake word detected — listening for command")
-    speak("Listening.")
-
     try:
         mic = sr.Microphone()
         cmd_recognizer = sr.Recognizer()
@@ -220,8 +218,6 @@ def main() -> None:
     with mic as source:
         r.adjust_for_ambient_noise(source, duration=2)
     log.info("Calibration done. Say 'Hey Claude' to activate.")
-
-    speak("Hey Claude is ready.")
 
     stop_listening = r.listen_in_background(mic, wake_callback, phrase_time_limit=5)
 
