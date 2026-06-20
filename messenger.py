@@ -1,50 +1,29 @@
 """
-WiFi Prank Messenger — runs entirely on your phone.
+Prank Messenger — deployed on Render, works from any browser.
 
-Requirements (phone only):
-    pip install flask          (in Termux or any Python terminal app)
+No installs needed anywhere. Two URLs, that's it:
 
-── Start the server on your phone ────────────────────────────────────
-    python3 messenger.py
+  PC page   →  https://<your-render-app>.onrender.com/
+               Send this to your friend (looks like a blank page).
 
-── Two URLs will be printed ──────────────────────────────────────────
-    PC page  →  http://<your-phone-ip>:5001/
-    Send page→  http://<your-phone-ip>:5001/send
+  Send page →  https://<your-render-app>.onrender.com/send
+               Open this on your iPhone to fire the message.
 
-Step 1: Trick your friend into opening the PC URL in their browser.
-        (Send them a "link to a game", "check this out", etc.)
-        The page looks completely blank — nothing to see.
-
-Step 2: When you're ready, open the Send URL on your own phone,
-        type a message and hit Send.
-        → The message BLASTS onto their screen out of nowhere.
+When you hit Send, their entire screen gets taken over.
 """
 
-import socket
+import os
 import threading
-import time
 from flask import Flask, request, jsonify, render_template_string
 
-app      = Flask(__name__)
-PORT     = 5001
-_pending = []          # messages waiting to be picked up by PC page
-_lock    = threading.Lock()
+app   = Flask(__name__)
+_lock = threading.Lock()
+_msgs = []   # in-memory list of {seq, from, msg}
 
 
-def _local_ip() -> str:
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("8.8.8.8", 80))
-        return s.getsockname()[0]
-    except Exception:
-        return "127.0.0.1"
-    finally:
-        s.close()
-
-
-# ── PC page — looks like a blank white page ────────────────────────────────────
-# Secretly polls /poll every 2 seconds. When a message arrives it takes over
-# the entire screen dramatically.
+# ── PC receiver page ───────────────────────────────────────────────────────────
+# Looks 100% blank. Polls /poll every 2 seconds. When a message arrives it
+# takes over the full screen with a glowing fullscreen overlay.
 
 PC_PAGE = """<!DOCTYPE html>
 <html lang="en">
@@ -53,94 +32,87 @@ PC_PAGE = """<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Loading…</title>
   <style>
-    body { margin: 0; background: #fff; font-family: sans-serif; }
+    body { margin: 0; background: #fff; }
 
-    /* Fullscreen overlay — hidden until a message arrives */
     #overlay {
       display: none;
       position: fixed; inset: 0;
       background: #0f172a;
       z-index: 9999;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      flex-direction: column;
       text-align: center;
       padding: 40px;
-      animation: fadeIn .4s ease;
+      animation: pop .35s cubic-bezier(.22,1,.36,1);
     }
     #overlay.show { display: flex; }
 
-    @keyframes fadeIn { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
+    @keyframes pop {
+      from { opacity: 0; transform: scale(.92); }
+      to   { opacity: 1; transform: scale(1); }
+    }
 
     #from {
+      font-family: -apple-system, sans-serif;
       font-size: 1rem;
       color: #38bdf8;
-      letter-spacing: .1em;
+      letter-spacing: .12em;
       text-transform: uppercase;
-      margin-bottom: 24px;
+      margin-bottom: 28px;
     }
     #text {
-      font-size: clamp(1.8rem, 5vw, 3.5rem);
+      font-family: -apple-system, sans-serif;
+      font-size: clamp(2rem, 6vw, 4rem);
+      font-weight: 800;
       color: #f1f5f9;
-      font-weight: 700;
-      line-height: 1.3;
-      max-width: 800px;
+      line-height: 1.25;
+      max-width: 820px;
       word-break: break-word;
-      animation: pulse 1.5s ease infinite;
+      animation: glow 2s ease-in-out infinite;
     }
-    @keyframes pulse {
+    @keyframes glow {
       0%,100% { text-shadow: 0 0 20px #38bdf8; }
-      50%      { text-shadow: 0 0 60px #38bdf8, 0 0 120px #0ea5e9; }
+      50%      { text-shadow: 0 0 80px #38bdf8, 0 0 160px #0ea5e9; }
     }
-    #close {
-      margin-top: 48px;
-      padding: 12px 32px;
+    #dismiss {
+      margin-top: 56px;
+      padding: 10px 28px;
       background: transparent;
       border: 1px solid #334155;
       border-radius: 8px;
-      color: #64748b;
-      font-size: .9rem;
+      color: #475569;
+      font-size: .85rem;
+      font-family: -apple-system, sans-serif;
       cursor: pointer;
     }
-    #close:hover { border-color: #64748b; color: #94a3b8; }
+    #dismiss:hover { border-color: #64748b; color: #94a3b8; }
   </style>
 </head>
 <body>
-
 <div id="overlay">
   <div id="from"></div>
   <div id="text"></div>
-  <button id="close" onclick="dismiss()">dismiss</button>
+  <button id="dismiss" onclick="close_()">dismiss</button>
 </div>
-
 <script>
-  let seq = 0;
+  var seq = 0;
 
-  async function poll() {
-    try {
-      const r = await fetch('/poll?seq=' + seq);
-      if (r.ok) {
-        const d = await r.json();
-        if (d.msg) {
-          seq = d.seq;
-          show(d.from, d.msg);
-        }
-      }
-    } catch (_) {}
-    setTimeout(poll, 2000);
+  function poll() {
+    fetch('/poll?seq=' + seq)
+      .then(r => r.json())
+      .then(d => { if (d.msg) { seq = d.seq; show(d.from, d.msg); } })
+      .catch(function(){})
+      .finally(function(){ setTimeout(poll, 2000); });
   }
 
   function show(from, msg) {
     document.getElementById('from').textContent = from ? '📨  from ' + from : '📨  new message';
     document.getElementById('text').textContent = msg;
     document.getElementById('overlay').classList.add('show');
-    // Also try a browser notification (only works if user granted permission before)
-    if (Notification && Notification.permission === 'granted') {
-      new Notification(from || 'New message', { body: msg });
-    }
   }
 
-  function dismiss() {
+  function close_() {
     document.getElementById('overlay').classList.remove('show');
   }
 
@@ -150,7 +122,7 @@ PC_PAGE = """<!DOCTYPE html>
 </html>"""
 
 
-# ── Sender page — what YOU open on your phone ──────────────────────────────────
+# ── iPhone sender page ─────────────────────────────────────────────────────────
 
 SEND_PAGE = """<!DOCTYPE html>
 <html lang="en">
@@ -197,39 +169,39 @@ SEND_PAGE = """<!DOCTYPE html>
 <body>
 <div class="card">
   <h1>😈 Prank Control</h1>
-  <p class="sub">Your friend has NO idea what's coming</p>
+  <p class="sub">They have absolutely no idea</p>
 
-  <label>Your name (shown on their screen)</label>
+  <label>Your name (shows on their screen)</label>
   <input id="name" type="text" placeholder="optional"/>
 
   <label>Message</label>
-  <textarea id="msg" placeholder="Type the message that will take over their screen…"></textarea>
+  <textarea id="msg" placeholder="Type what will take over their screen…"></textarea>
 
   <button id="btn" onclick="blast()">💥 BLAST IT</button>
   <div id="st"></div>
 </div>
 <script>
   async function blast() {
-    const name = document.getElementById('name').value.trim();
-    const msg  = document.getElementById('msg').value.trim();
-    const st   = document.getElementById('st');
-    const btn  = document.getElementById('btn');
+    var name = document.getElementById('name').value.trim();
+    var msg  = document.getElementById('msg').value.trim();
+    var st   = document.getElementById('st');
+    var btn  = document.getElementById('btn');
     if (!msg) { st.textContent='Write something first!'; st.className='er'; return; }
     btn.disabled = true;
-    st.textContent='Sending…'; st.className='';
+    st.textContent = 'Sending…'; st.className = '';
     try {
-      const r = await fetch('/message', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({name, message: msg})
+      var r = await fetch('/message', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: name, message: msg})
       });
       if (r.ok) {
-        document.getElementById('msg').value='';
-        st.textContent='💥 SENT — watch their face!'; st.className='ok';
-      } else { st.textContent='Error, try again.'; st.className='er'; }
-    } catch { st.textContent='Cannot reach server.'; st.className='er'; }
-    btn.disabled=false;
-    setTimeout(()=>{ st.textContent=''; st.className=''; }, 5000);
+        document.getElementById('msg').value = '';
+        st.textContent = '💥 SENT — watch their face!'; st.className = 'ok';
+      } else { st.textContent = 'Error, try again.'; st.className = 'er'; }
+    } catch(e) { st.textContent = 'Cannot reach server.'; st.className = 'er'; }
+    btn.disabled = false;
+    setTimeout(function(){ st.textContent=''; st.className=''; }, 5000);
   }
 </script>
 </body>
@@ -255,41 +227,28 @@ def push_message():
     name = (data.get("name")    or "").strip()
     if text:
         with _lock:
-            _pending.append({"seq": len(_pending) + 1, "from": name, "msg": text})
+            _msgs.append({"seq": len(_msgs) + 1, "from": name, "msg": text})
     return jsonify({"ok": bool(text)})
 
 
 @app.route("/poll")
 def poll():
-    """PC page polls this — returns the latest unread message if any."""
+    """PC page calls this every 2 s to check for new messages."""
     try:
         client_seq = int(request.args.get("seq", 0))
     except ValueError:
         client_seq = 0
 
     with _lock:
-        for item in reversed(_pending):
+        for item in reversed(_msgs):
             if item["seq"] > client_seq:
                 return jsonify(item)
 
     return jsonify({"msg": None})
 
 
-# ── Entry point ────────────────────────────────────────────────────────────────
+# ── Local dev entry point ──────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import logging
-    logging.getLogger("werkzeug").setLevel(logging.ERROR)
-
-    ip = _local_ip()
-    print()
-    print("  Prank Messenger running!")
-    print("  " + "─" * 42)
-    print(f"  1. Send this to your friend (PC):  http://{ip}:{PORT}/")
-    print(f"     (tell them it's a game/video/anything)")
-    print()
-    print(f"  2. Open this on YOUR phone to send: http://{ip}:{PORT}/send")
-    print("  " + "─" * 42)
-    print("  Ctrl+C to stop.\n")
-
-    app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False)
+    port = int(os.environ.get("PORT", 5001))
+    app.run(host="0.0.0.0", port=port, debug=False)

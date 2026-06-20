@@ -1,5 +1,11 @@
 services:
   - type: web
+    name: prank-messenger
+    runtime: python
+    buildCommand: pip install -r requirements-messenger.txt
+    startCommand: gunicorn messenger:app --bind 0.0.0.0:$PORT
+
+  - type: web
     name: hey-claude
     runtime: python
     buildCommand: pip install -r requirements-server.txt
