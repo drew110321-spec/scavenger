@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+roadai_demo.avi
+preview.png
+p_*.png
+.env
