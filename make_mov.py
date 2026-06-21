@@ -280,9 +280,14 @@ def build_moov(nframes, vsizes, video_off, audio_bytes_len, naudio):
     adur_mv = int(naudio * MV_TS / SR)
     a_stsd = fullbox(b"stsd", 0, 0, struct.pack(">I", 1),
         box(b"sowt",
-            b"\x00" * 6 + struct.pack(">H", 1) +           # data_ref_index
-            struct.pack(">HHHH", 0, 0, 1, 16) +            # ver,rev? -> ver0,rev0,channels,bits
-            struct.pack(">HH", 0, 0) +                     # compression_id, packet_size
+            b"\x00" * 6 + struct.pack(">H", 1) +           # reserved + data_ref_index
+            struct.pack(">H", 0) +                         # version
+            struct.pack(">H", 0) +                         # revision level
+            struct.pack(">I", 0) +                         # vendor
+            struct.pack(">H", 1) +                         # num channels
+            struct.pack(">H", 16) +                        # sample size (bits)
+            struct.pack(">h", 0) +                         # compression id
+            struct.pack(">H", 0) +                         # packet size
             struct.pack(">I", SR << 16)))                  # sample rate 16.16
     a_stts = fullbox(b"stts", 0, 0, struct.pack(">I", 1),
                      struct.pack(">II", naudio, 1))
