@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Roadside Assist AI — Demo</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #20243a;
+    --border: #2d3150;
+    --accent: #f97316;
+    --accent2: #3b82f6;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --ok: #22c55e;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+
+  .logo {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent); }
+
+  .badge {
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.5px;
+  }
+
+  header .sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-left: auto;
+  }
+
+  /* ── Pipeline bar ── */
+  .pipeline-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+  }
+
+  .pipe-tab {
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    color: var(--muted);
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    background: none;
+  }
+  .pipe-tab:hover { color: var(--text); }
+  .pipe-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .pipe-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .pipe-tab.active .pipe-num {
+    background: var(--accent);
+    color: white;
+  }
+
+  /* ── Main layout ── */
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px 24px;
+  }
+
+  .stage { display: none; }
+  .stage.active { display: block; }
+
+  /* ── Stage header ── */
+  .stage-header {
+    margin-bottom: 24px;
+  }
+  .stage-header h2 {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+  .stage-header p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .insight-box {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1a2744 100%);
+    border: 1px solid #2d4a7a;
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #93c5fd;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .insight-box .icon { font-size: 16px; flex-shrink: 0; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 768px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  /* ── Chat ── */
+  .chat-window {
+    height: 340px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 0;
+    margin-bottom: 16px;
+  }
+
+  .msg {
+    display: flex;
+    gap: 10px;
+    max-width: 85%;
+  }
+  .msg.user { margin-left: auto; flex-direction: row-reverse; }
+
+  .msg-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .msg.ai .msg-avatar { background: #1e40af; }
+  .msg.user .msg-avatar { background: #374151; }
+
+  .msg-bubble {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .msg.user .msg-bubble {
+    background: #1e3a5f;
+    border-color: #2d4a7a;
+  }
+
+  .msg-time {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .chat-input-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  input[type="text"], textarea, select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 10px 14px;
+    width: 100%;
+    transition: border-color 0.2s;
+    font-family: inherit;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--accent2);
+  }
+  select option { background: var(--surface); }
+
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  /* ── JSON viewer ── */
+  .json-box {
+    background: #0a0d1a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    color: #a5f3fc;
+    min-height: 80px;
+  }
+
+  .label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  /* ── Priority badge ── */
+  .priority-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+    letter-spacing: 0.4px;
+  }
+  .priority-badge.CRITICAL { background: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444; }
+  .priority-badge.HIGH     { background: #78350f; color: #fcd34d; border: 1px solid #f59e0b; }
+  .priority-badge.NORMAL   { background: #14532d; color: #86efac; border: 1px solid #22c55e; }
+
+  /* ── Queue ── */
+  .queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .job-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    transition: border-color 0.2s;
+  }
+  .job-card:hover { border-color: var(--accent2); cursor: pointer; }
+  .job-card.critical { border-left: 3px solid var(--danger); }
+  .job-card.high { border-left: 3px solid var(--warn); }
+  .job-card.normal { border-left: 3px solid var(--ok); }
+
+  .job-rank {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 15px;
+  }
+  .job-rank.critical { background: #7f1d1d; color: #fca5a5; }
+  .job-rank.high     { background: #78350f; color: #fcd34d; }
+  .job-rank.normal   { background: #1a3a1a; color: #86efac; }
+
+  .job-info h4 { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .job-info p  { font-size: 12px; color: var(--muted); }
+
+  .job-meta { text-align: right; font-size: 12px; }
+  .job-meta .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  .status-dot.assigned { background: var(--muted); }
+  .status-dot.en_route { background: var(--accent); animation: pulse 1.5s infinite; }
+  .status-dot.on_site  { background: var(--ok); animation: pulse 1s infinite; }
+  .status-dot.done     { background: var(--border); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── State machine ── */
+  .state-machine {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 20px 0;
+    overflow-x: auto;
+  }
+
+  .state-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 80px;
+  }
+
+  .state-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: all 0.3s;
+    background: var(--surface);
+  }
+
+  .state-circle.active {
+    border-color: var(--accent);
+    background: rgba(249, 115, 22, 0.15);
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
+  }
+
+  .state-circle.done {
+    border-color: var(--ok);
+    background: rgba(34, 197, 94, 0.15);
+  }
+
+  .state-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .state-arrow {
+    color: var(--border);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  /* ── Star rating ── */
+  .stars {
+    display: flex;
+    gap: 6px;
+    margin: 8px 0;
+  }
+  .star {
+    font-size: 28px;
+    cursor: pointer;
+    transition: transform 0.1s;
+    color: var(--border);
+  }
+  .star:hover, .star.active { color: #f59e0b; transform: scale(1.2); }
+
+  /* ── Misc ── */
+  .tag {
+    display: inline-block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .triage-rule {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .triage-rule .rule-icon { font-size: 18px; flex-shrink: 0; }
+  .triage-rule .rule-text { flex: 1; }
+  .triage-rule .rule-text strong { display: block; margin-bottom: 2px; }
+  .triage-rule .rule-text span { color: var(--muted); font-size: 12px; }
+
+  .alert-box {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.4);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #fca5a5;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: fit-content;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    animation: bounce 1.2s infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .success-banner {
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.4);
+    border-radius: 8px;
+    padding: 14px 18px;
+    color: #86efac;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+
+  .pill-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .pill {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--text);
+    transition: all 0.2s;
+  }
+  .pill:hover { border-color: var(--accent); color: var(--accent); }
+  .pill.selected { background: var(--accent); border-color: var(--accent); color: white; }
+
+  .quick-msg {
+    font-size: 12px;
+    padding: 6px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.2s;
+    background: none;
+    font-family: inherit;
+  }
+  .quick-msg:hover { border-color: var(--accent); color: var(--accent); background: none; filter: none; }
+
+  .quick-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Road<span>AI</span></div>
+  <span class="badge">DEMO</span>
+  <div class="sub">Roadside Assistance · AI Pipeline Demo</div>
+</header>
+
+<div class="pipeline-bar">
+  <button class="pipe-tab active" onclick="showStage(1)">
+    <span class="pipe-num">1</span> Intake Chat
+  </button>
+  <button class="pipe-tab" onclick="showStage(2)">
+    <span class="pipe-num">2</span> Triage Queue
+  </button>
+  <button class="pipe-tab" onclick="showStage(3)">
+    <span class="pipe-num">3</span> Dispatch Board
+  </button>
+  <button class="pipe-tab" onclick="showStage(4)">
+    <span class="pipe-num">4</span> Status Chat
+  </button>
+  <button class="pipe-tab" onclick="showStage(5)">
+    <span class="pipe-num">5</span> Survey Loop
+  </button>
+</div>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STAGE 1 — INTAKE CHAT
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="stage active" id="stage-1">
+  <div class="stage-header">
+    <h2>📞 Stage 1 — Intake Chat</h2>
+    <p>The member types (or speaks) their problem. The LLM doesn't just chat — it <strong>extracts structured JSON</strong>: problem type, location, vehicle, and a safety check. No transcript, just data.</p>
+    <div class="insight-box">
+      <span class="icon">💡</span>
+      <span>The output of this stage is JSON, not a conversation. That's what makes it usable downstream — triage rules run on structured fields, not free text.</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Left: chat -->
+    <div class="card">
+      <div class="section-title">Member Chat Window</div>
+
+      <div class="quick-row">
+        <button class="quick-msg" onclick="fillIntake('My battery is dead, I\'m in the Target parking lot on Oak Street')">🔋 Dead battery</button>
+        <button class="quick-msg" onclick="fillIntake('I got a flat tire on the highway, I\'m on the shoulder of I-95 near exit 12')">🚗 Flat on highway</button>
+        <button class="quick-msg" onclick="fillIntake('I locked my keys in the car, I\'m at 221 Pine Avenue')">🔑 Lockout</button>
+        <button class="quick-msg" onclick="fillIntake('I was rear-ended on I-95, airbags went off, I think I\'m okay but I\'m shaken')">🚨 Accident</button>
+      </div>
+
+      <div class="chat-window" id="intake-chat"></div>
+
+      <div class="chat-input-row">
+        <input type="text" id="intake-input" placeholder="Describe your problem…" onkeydown="if(event.key==='Enter')sendIntake()" />
+        <button onclick="sendIntake()" id="intake-btn">Send</button>
+      </div>
+    </div>
+
+    <!-- Right: extracted data -->
+    <div class="card">
+      <div class="section-title">Extracted Data (JSON)</div>
+      <div class="json-box" id="intake-json">// Send a message to see extracted data</div>
+
+      <div style="margin-top: 16px;">
+        <div class="section-title">Triage Result</div>
+        <div id="intake-triage">
+          <p style="color: var(--muted); font-size: 13px;">Waiting for intake…</p>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <div class="section-title">Why not let the AI triage?</div>
+        <div class="alert-box">
+          <span>⚠️</span>
+          <span>For safety-critical calls, hard-coded rules only. An LLM could hallucinate a highway breakdown as "can wait." Accident / highway / injury = <strong>always top of queue</strong>, zero AI judgment.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STAGE 2 — TRIAGE QUEUE
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="stage" id="stage-2">
+  <div class="stage-header">
+    <h2>⚡ Stage 2 — Triage Queue</h2>
+    <p>The AI <em>classifies</em> the call. Deterministic logic <em>orders</em> the queue. The AI never decides priority on safety-critical jobs.</p>
+    <div class="insight-box">
+      <span class="icon">💡</span>
+      <span>AI role: classify problem type. Rules role: set priority. These are two different things and must stay separate.</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-title">Live Queue</div>
+      <div class="queue-list" id="queue-list">
+        <div style="color: var(--muted); font-size: 13px;">Loading…</div>
+      </div>
+      <button onclick="loadQueue()" class="secondary" style="margin-top: 14px; width: 100%;">↻ Refresh Queue</button>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Triage Rules (Deterministic)</div>
+
+      <div class="triage-rule">
+        <div class="rule-icon">🔴</div>
+        <div class="rule-text">
+          <strong>CRITICAL — Injury reported</strong>
+          <span>Pinned to top. No AI judgment. <code>if injury == True → priority 1</code></span>
+        </div>
+      </div>
+      <div class="triage-rule">
+        <div class="rule-icon">🔴</div>
+        <div class="rule-text">
+          <strong>CRITICAL — Accident + unsafe location</strong>
+          <span><code>if problem == accident and not safe → priority 1</code></span>
+        </div>
+      </div>
+      <div class="triage-rule">
+        <div class="rule-icon">🟡</div>
+        <div class="rule-text">
+          <strong>HIGH — Disabled on highway</strong>
+          <span><code>if highway in location and problem in [accident, flat, won_start] → priority 2</code></span>
+        </div>
+      </div>
+      <div class="triage-rule">
+        <div class="rule-icon">🟢</div>
+        <div class="rule-text">
+          <strong>NORMAL — Safe location, standard problem</strong>
+          <span>Battery, lockout, gas in a parking lot or residential street</span>
+        </div>
+      </div>
+
+      <hr />
+
+      <div class="section-title" style="margin-top: 0">Add a Job — See Live Triage</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Problem Type</label>
+          <select id="new-problem">
+            <option value="battery">Dead Battery</option>
+            <option value="flat">Flat Tire</option>
+            <option value="lockout">Lockout</option>
+            <option value="gas">Out of Gas</option>
+            <option value="accident">Accident</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <input type="text" id="new-location" placeholder="e.g. I-95 north, exit 7" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Safe? (off road)</label>
+          <select id="new-safe">
+            <option value="true">Yes — safe</option>
+            <option value="false">No — in traffic</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Injury?</label>
+          <select id="new-injury">
+            <option value="false">No injury</option>
+            <option value="true">Injury reported</option>
+          </select>
+        </div>
+      </div>
+      <button onclick="addJob()" style="width:100%">Add to Queue → See Triage</button>
+      <div id="triage-result" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STAGE 3 — DISPATCH BOARD
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="stage" id="stage-3">
+  <div class="stage-header">
+    <h2>🚐 Stage 3 — Dispatch Board</h2>
+    <p>This is the heavy lift — and it's <strong>not an AI problem</strong>. It's logistics software: driver app, job queue, assignment algorithm, GPS tracking, and a state machine.</p>
+    <div class="insight-box">
+      <span class="icon">💡</span>
+      <span>This is where most of the engineering months go. Either build it or integrate an existing roadside dispatch SaaS. The AI pipeline wraps around this — it doesn't replace it.</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-title">Job State Machine</div>
+      <div class="state-machine">
+        <div class="state-node">
+          <div class="state-circle done">📋</div>
+          <div class="state-label">Intake</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div class="state-node">
+          <div class="state-circle active">✅</div>
+          <div class="state-label">Assigned</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div class="state-node">
+          <div class="state-circle" id="sm-enroute">🚐</div>
+          <div class="state-label">En Route</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div class="state-node">
+          <div class="state-circle" id="sm-onsite">🔧</div>
+          <div class="state-label">On Site</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div class="state-node">
+          <div class="state-circle" id="sm-done">🎉</div>
+          <div class="state-label">Done</div>
+        </div>
+      </div>
+      <button onclick="advanceState()" style="width:100%; margin-top:8px">Advance Job State →</button>
+      <div id="state-info" style="margin-top: 12px; color: var(--muted); font-size: 13px; text-align: center;">
+        Click to simulate job progressing through states
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Active Jobs — Driver Assignments</div>
+      <div id="dispatch-board" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="color: var(--muted); font-size: 13px;">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 20px;">
+    <div class="card">
+      <div class="section-title">What This Layer Actually Is</div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 8px;">
+        <div style="text-align:center; padding: 16px;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📱</div>
+          <div style="font-weight: 700; margin-bottom: 4px;">Driver App</div>
+          <div style="font-size: 12px; color: var(--muted);">Mobile app for field techs — accept jobs, update status, navigate</div>
+        </div>
+        <div style="text-align:center; padding: 16px;">
+          <div style="font-size: 32px; margin-bottom: 8px;">🗺️</div>
+          <div style="font-weight: 700; margin-bottom: 4px;">GPS Tracking</div>
+          <div style="font-size: 12px; color: var(--muted);">Real-time driver location for ETA calculation and status updates</div>
+        </div>
+        <div style="text-align:center; padding: 16px;">
+          <div style="font-size: 32px; margin-bottom: 8px;">🔀</div>
+          <div style="font-weight: 700; margin-bottom: 4px;">Assignment Algorithm</div>
+          <div style="font-size: 12px; color: var(--muted);">Nearest available driver + skill match + load balancing</div>
+        </div>
+        <div style="text-align:center; padding: 16px;">
+          <div style="font-size: 32px; margin-bottom: 8px;">⚙️</div>
+          <div style="font-weight: 700; margin-bottom: 4px;">State Machine</div>
+          <div style="font-size: 12px; color: var(--muted);">assigned → en route → on site → done — every transition is an event</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STAGE 4 — STATUS CHAT
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="stage" id="stage-4">
+  <div class="stage-header">
+    <h2>💬 Stage 4 — Status Chat</h2>
+    <p>Member asks "where's my driver?" — the AI does a database lookup and translates raw status data into a friendly reply. It's a <strong>lookup wrapped in nice wording</strong>, not magic.</p>
+    <div class="insight-box">
+      <span class="icon">💡</span>
+      <span>The AI's role here is translation, not intelligence. It takes "status: en_route, eta: 12min, dist: 4.1mi" and makes it feel human. The data is always from the database — never hallucinated.</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-title">Select a Job</div>
+      <div class="pill-row" id="job-pills"></div>
+
+      <div class="section-title" style="margin-top: 8px;">Ask About Status</div>
+      <div class="quick-row">
+        <button class="quick-msg" onclick="fillStatus('Where is my driver right now?')">📍 Where's my driver?</button>
+        <button class="quick-msg" onclick="fillStatus('How much longer will this take?')">⏱ How much longer?</button>
+        <button class="quick-msg" onclick="fillStatus('Is someone coming?')">🚗 Is someone coming?</button>
+      </div>
+
+      <div class="chat-window" id="status-chat"></div>
+
+      <div class="chat-input-row">
+        <input type="text" id="status-input" placeholder="Ask about your job…" onkeydown="if(event.key==='Enter')sendStatus()" />
+        <button onclick="sendStatus()" id="status-btn">Ask</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Raw Database Record</div>
+      <div class="json-box" id="status-json">// Select a job to see its raw data</div>
+
+      <div style="margin-top: 16px;">
+        <div class="section-title">What the AI Actually Does</div>
+        <div class="triage-rule">
+          <div class="rule-icon">1️⃣</div>
+          <div class="rule-text">
+            <strong>Fetch job record from database</strong>
+            <span>status, driver name, ETA, distance — no AI involved</span>
+          </div>
+        </div>
+        <div class="triage-rule">
+          <div class="rule-icon">2️⃣</div>
+          <div class="rule-text">
+            <strong>Pass raw data to LLM as context</strong>
+            <span>System prompt says: translate this to a friendly, accurate reply</span>
+          </div>
+        </div>
+        <div class="triage-rule">
+          <div class="rule-icon">3️⃣</div>
+          <div class="rule-text">
+            <strong>Return the friendly reply</strong>
+            <span>Grounded in real data — no hallucinations about ETA or location</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STAGE 5 — SURVEY LOOP
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="stage" id="stage-5">
+  <div class="stage-header">
+    <h2>📊 Stage 5 — Survey + Improvement Loop</h2>
+    <p>Post-service rating + transcript stored for every job. The improvement loop is <strong>human-driven prompt iteration</strong>, not autonomous self-training.</p>
+    <div class="insight-box">
+      <span class="icon">💡</span>
+      <span>"The AI trains itself" doesn't work at this scale. What actually improves it: log everything, read the 1–2 star transcripts, fix your prompts and routing rules, build an eval set. Maybe fine-tune way down the line.</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-title">Post-Service Survey</div>
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label>Job ID</label>
+        <select id="survey-job">
+          <option value="JOB-002">JOB-002 — James R. (Flat tire)</option>
+          <option value="JOB-003">JOB-003 — Maria G. (Dead battery)</option>
+          <option value="JOB-005">JOB-005 — Rachel T. (Out of gas)</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label>Rating</label>
+        <div class="stars" id="star-rating">
+          <span class="star" data-v="1" onclick="setRating(1)">★</span>
+          <span class="star" data-v="2" onclick="setRating(2)">★</span>
+          <span class="star" data-v="3" onclick="setRating(3)">★</span>
+          <span class="star" data-v="4" onclick="setRating(4)">★</span>
+          <span class="star" data-v="5" onclick="setRating(5)">★</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label>Comment</label>
+        <textarea id="survey-comment" rows="3" placeholder="How was your experience?"></textarea>
+      </div>
+
+      <button onclick="submitSurvey()" style="width: 100%">Submit Survey</button>
+      <div id="survey-result" style="margin-top: 12px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">The Real Training Loop</div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+        <div class="triage-rule">
+          <div class="rule-icon">💾</div>
+          <div class="rule-text">
+            <strong>Store everything</strong>
+            <span>Rating, comment, full transcript, job outcome — indexed and searchable</span>
+          </div>
+        </div>
+        <div class="triage-rule">
+          <div class="rule-icon">👁️</div>
+          <div class="rule-text">
+            <strong>Read the 1–2 star transcripts</strong>
+            <span>A human reads failing calls to find patterns — wrong classification, bad phrasing, missed info</span>
+          </div>
+        </div>
+        <div class="triage-rule">
+          <div class="rule-icon">✏️</div>
+          <div class="rule-text">
+            <strong>Fix prompts and rules</strong>
+            <span>Update the intake system prompt, add edge cases to triage rules, improve the eval set</span>
+          </div>
+        </div>
+        <div class="triage-rule">
+          <div class="rule-icon">🔬</div>
+          <div class="rule-text">
+            <strong>Fine-tune (eventually)</strong>
+            <span>Only once you have hundreds of labeled examples and a clear eval metric — not month 1</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert-box">
+        <span>⚠️</span>
+        <span>"The AI trains itself from survey scores" — this is the one part that doesn't work how most people picture. A small operator does not retrain an LLM from ratings. Too expensive, needs ML expertise, wrong tool for the problem.</span>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <div class="section-title">Submitted Surveys This Session</div>
+        <div id="survey-log" style="color: var(--muted); font-size: 13px;">No surveys yet</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let selectedRating = 0;
+let selectedJobId = 'JOB-002';
+let stateIdx = 1; // 0=intake,1=assigned,2=en_route,3=on_site,4=done
+const stateNames = ['intake','assigned','en_route','on_site','done'];
+const stateLabels = ['Intake', 'Assigned', 'En Route', 'On Site', 'Done'];
+const stateIcons  = ['📋','✅','🚐','🔧','🎉'];
+const stateNodeIds = [null, null, 'sm-enroute', 'sm-onsite', 'sm-done'];
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function showStage(n) {
+  document.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.pipe-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('stage-' + n).classList.add('active');
+  document.querySelectorAll('.pipe-tab')[n - 1].classList.add('active');
+  if (n === 2) loadQueue();
+  if (n === 3) loadDispatchBoard();
+  if (n === 4) loadJobPills();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function time() {
+  return new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+
+function appendMsg(chatId, role, text) {
+  const chat = document.getElementById(chatId);
+  const isUser = role === 'user';
+  const div = document.createElement('div');
+  div.className = 'msg ' + (isUser ? 'user' : 'ai');
+  div.innerHTML = `
+    <div class="msg-avatar">${isUser ? '👤' : '🤖'}</div>
+    <div>
+      <div class="msg-bubble">${text}</div>
+      <div class="msg-time">${time()}</div>
+    </div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping(chatId) {
+  const chat = document.getElementById(chatId);
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.id = chatId + '-typing';
+  div.innerHTML = `
+    <div class="msg-avatar">🤖</div>
+    <div class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function removeTyping(chatId) {
+  const el = document.getElementById(chatId + '-typing');
+  if (el) el.remove();
+}
+
+function priorityBadge(label) {
+  return `<span class="priority-badge ${label}">● ${label}</span>`;
+}
+
+function statusDot(status) {
+  return `<span class="status-dot ${status}"></span>`;
+}
+
+function problemEmoji(p) {
+  const m = {battery:'🔋', flat:'🚗', lockout:'🔑', gas:'⛽', accident:'🚨', won_start:'🔧', other:'❓'};
+  return m[p] || '❓';
+}
+
+// ── Stage 1: Intake ────────────────────────────────────────────────────────
+function fillIntake(msg) {
+  document.getElementById('intake-input').value = msg;
+  sendIntake();
+}
+
+async function sendIntake() {
+  const input = document.getElementById('intake-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  appendMsg('intake-chat', 'user', msg);
+  showTyping('intake-chat');
+  document.getElementById('intake-btn').disabled = true;
+
+  try {
+    const res = await fetch('/api/intake', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg}),
+    });
+    const data = await res.json();
+    removeTyping('intake-chat');
+
+    appendMsg('intake-chat', 'ai', data.reply);
+
+    // Show extracted JSON
+    document.getElementById('intake-json').textContent = JSON.stringify(data.extracted, null, 2);
+
+    // Show triage
+    const t = data.triage;
+    const colorMap = {CRITICAL: 'var(--danger)', HIGH: 'var(--warn)', NORMAL: 'var(--ok)'};
+    document.getElementById('intake-triage').innerHTML = `
+      <div style="display:flex; align-items:center; gap: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;">
+        ${priorityBadge(t.label)}
+        <div>
+          <div style="font-size: 14px; font-weight: 700;">Priority ${t.priority}</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">${t.reason}</div>
+        </div>
+      </div>`;
+  } catch (e) {
+    removeTyping('intake-chat');
+    appendMsg('intake-chat', 'ai', 'Error connecting to server. Make sure demo.py is running.');
+  }
+  document.getElementById('intake-btn').disabled = false;
+}
+
+// ── Stage 2: Queue ─────────────────────────────────────────────────────────
+async function loadQueue() {
+  const list = document.getElementById('queue-list');
+  list.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading…</div>';
+  try {
+    const res = await fetch('/api/queue');
+    const data = await res.json();
+    list.innerHTML = '';
+    data.jobs.forEach((job, i) => {
+      const lvl = job.priority_label.toLowerCase();
+      const div = document.createElement('div');
+      div.className = `job-card ${lvl}`;
+      div.innerHTML = `
+        <div class="job-rank ${lvl}">${i + 1}</div>
+        <div class="job-info">
+          <h4>${problemEmoji(job.problem)} ${job.member} — ${job.problem.toUpperCase()}</h4>
+          <p>${job.location}</p>
+        </div>
+        <div class="job-meta">
+          ${priorityBadge(job.priority_label)}<br/>
+          <span style="margin-top:5px;display:block">${statusDot(job.status)}${job.status}</span>
+          ${job.driver_eta_min > 0 ? `<span style="color:var(--muted)">${job.driver_eta_min} min</span>` : ''}
+        </div>`;
+      list.appendChild(div);
+    });
+  } catch (e) {
+    list.innerHTML = '<div style="color:var(--danger);font-size:13px">Failed to load queue</div>';
+  }
+}
+
+async function addJob() {
+  const problem = document.getElementById('new-problem').value;
+  const location = document.getElementById('new-location').value || '123 Main St';
+  const safe = document.getElementById('new-safe').value === 'true';
+  const injury = document.getElementById('new-injury').value === 'true';
+
+  const res = await fetch('/api/dispatch', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      problem, location,
+      description: `${problem} call`,
+      vehicle: '2023 Demo Vehicle',
+      member: 'Demo Member',
+      safe, injury,
+    }),
+  });
+  const data = await res.json();
+  const t = data.triage;
+
+  document.getElementById('triage-result').innerHTML = `
+    <div style="padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:8px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span style="font-weight:700">New Job: ${data.job.id}</span>
+        ${priorityBadge(t.label)}
+      </div>
+      <div style="font-size:12px;color:var(--muted)">${t.reason}</div>
+    </div>`;
+  loadQueue();
+}
+
+// ── Stage 3: Dispatch ──────────────────────────────────────────────────────
+async function loadDispatchBoard() {
+  const board = document.getElementById('dispatch-board');
+  const res = await fetch('/api/queue');
+  const data = await res.json();
+  board.innerHTML = '';
+  data.jobs.filter(j => j.status !== 'done').forEach(job => {
+    const div = document.createElement('div');
+    div.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;';
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-weight:700;font-size:14px">${job.id} — ${problemEmoji(job.problem)} ${job.problem}</span>
+        ${priorityBadge(job.priority_label)}
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">👤 ${job.member} · ${job.vehicle}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">📍 ${job.location}</div>
+      <div style="display:flex;gap:16px;font-size:12px;">
+        <span>${statusDot(job.status)} ${job.status.replace('_',' ')}</span>
+        <span>🧑‍🔧 ${job.driver}</span>
+        ${job.driver_eta_min > 0 ? `<span>⏱ ${job.driver_eta_min} min</span>` : ''}
+      </div>`;
+    board.appendChild(div);
+  });
+}
+
+function advanceState() {
+  stateIdx = Math.min(stateIdx + 1, 4);
+  // Reset all nodes
+  document.querySelectorAll('.state-circle').forEach(c => {
+    c.classList.remove('active', 'done');
+  });
+  const circles = document.querySelectorAll('.state-circle');
+  circles.forEach((c, i) => {
+    if (i < stateIdx) c.classList.add('done');
+    else if (i === stateIdx) c.classList.add('active');
+  });
+  const labels = ['Intake complete', 'Driver assigned — heading out', 'Driver en route — ETA 18 min', 'Driver on site — service in progress', '✅ Job complete — survey sent'];
+  document.getElementById('state-info').textContent = labels[stateIdx];
+  if (stateIdx === 4) {
+    document.querySelector('[onclick="advanceState()"]').textContent = '↩ Reset';
+    document.querySelector('[onclick="advanceState()"]').onclick = () => { stateIdx = 1; advanceState(); document.querySelector('[onclick^="advance"]').textContent = 'Advance Job State →'; document.querySelector('[onclick^="advance"]').onclick = advanceState; };
+  }
+}
+
+// ── Stage 4: Status Chat ───────────────────────────────────────────────────
+async function loadJobPills() {
+  const res = await fetch('/api/queue');
+  const data = await res.json();
+  const pills = document.getElementById('job-pills');
+  pills.innerHTML = '';
+  data.jobs.forEach(job => {
+    const btn = document.createElement('button');
+    btn.className = 'pill' + (job.id === selectedJobId ? ' selected' : '');
+    btn.textContent = `${job.id} ${problemEmoji(job.problem)}`;
+    btn.onclick = () => {
+      document.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedJobId = job.id;
+      showJobData(job);
+    };
+    pills.appendChild(btn);
+    if (job.id === selectedJobId) showJobData(job);
+  });
+}
+
+function showJobData(job) {
+  document.getElementById('status-json').textContent = JSON.stringify({
+    id: job.id,
+    status: job.status,
+    driver: job.driver,
+    eta_min: job.driver_eta_min,
+    dist_mi: job.driver_dist_mi,
+    location: job.location,
+    problem: job.problem,
+  }, null, 2);
+}
+
+function fillStatus(msg) {
+  document.getElementById('status-input').value = msg;
+  sendStatus();
+}
+
+async function sendStatus() {
+  const input = document.getElementById('status-input');
+  const msg = input.value.trim();
+  if (!msg || !selectedJobId) return;
+  input.value = '';
+
+  appendMsg('status-chat', 'user', msg);
+  showTyping('status-chat');
+  document.getElementById('status-btn').disabled = true;
+
+  try {
+    const res = await fetch('/api/status', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({job_id: selectedJobId, question: msg}),
+    });
+    const data = await res.json();
+    removeTyping('status-chat');
+    appendMsg('status-chat', 'ai', `<strong>[DB lookup: ${data.raw_status.status}]</strong><br/>${data.reply}`);
+    document.getElementById('status-json').textContent = JSON.stringify(data.raw_status, null, 2);
+  } catch (e) {
+    removeTyping('status-chat');
+    appendMsg('status-chat', 'ai', 'Error connecting to server.');
+  }
+  document.getElementById('status-btn').disabled = false;
+}
+
+// ── Stage 5: Survey ────────────────────────────────────────────────────────
+function setRating(v) {
+  selectedRating = v;
+  document.querySelectorAll('.star').forEach(s => {
+    s.classList.toggle('active', parseInt(s.dataset.v) <= v);
+  });
+}
+
+async function submitSurvey() {
+  if (!selectedRating) { alert('Please select a rating'); return; }
+  const jobId = document.getElementById('survey-job').value;
+  const comment = document.getElementById('survey-comment').value;
+
+  const res = await fetch('/api/survey', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({job_id: jobId, rating: selectedRating, comment}),
+  });
+  const data = await res.json();
+
+  document.getElementById('survey-result').innerHTML = `
+    <div class="success-banner">✅ ${data.message}</div>`;
+
+  document.getElementById('survey-comment').value = '';
+  setRating(0);
+  selectedRating = 0;
+  loadSurveyLog();
+}
+
+async function loadSurveyLog() {
+  const res = await fetch('/api/surveys');
+  const data = await res.json();
+  const log = document.getElementById('survey-log');
+  if (!data.surveys.length) { log.innerHTML = '<span style="color:var(--muted);font-size:13px">No surveys yet</span>'; return; }
+  log.innerHTML = data.surveys.map(s => `
+    <div style="padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <strong>${s.job_id}</strong>
+        <span style="color:var(--warn)">${'★'.repeat(s.rating)}${'☆'.repeat(5-s.rating)}</span>
+      </div>
+      ${s.comment ? `<div style="color:var(--muted)">"${s.comment}"</div>` : ''}
+    </div>`).join('') + (data.avg_rating ? `<div style="color:var(--muted);font-size:12px;margin-top:8px;">Average: <strong style="color:var(--text)">${data.avg_rating.toFixed(1)} / 5.0</strong></div>` : '');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+// Add initial AI greeting to intake chat
+appendMsg('intake-chat', 'ai', "Hi! I'm your roadside assistance AI. Tell me what's going on with your vehicle and where you are.");
+
+// Kick off queue load when tab becomes active via default
+</script>
+</body>
+</html>
