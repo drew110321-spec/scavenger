@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen" />
+  <title>BitMiner Pro</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: #0a0a0f;
+      color: #00ff88;
+      font-family: 'Courier New', monospace;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Matrix rain canvas */
+    #matrix {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      opacity: 0.07;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .screen {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #00ff8833;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btc-icon {
+      font-size: 32px;
+      filter: drop-shadow(0 0 8px #f7931a);
+      animation: pulse 2s infinite;
+    }
+
+    .logo-text {
+      font-size: 22px;
+      font-weight: bold;
+      color: #f7931a;
+      text-shadow: 0 0 12px #f7931a88;
+      letter-spacing: 2px;
+    }
+
+    .logo-sub {
+      font-size: 10px;
+      color: #00ff8888;
+      letter-spacing: 4px;
+      margin-top: 2px;
+    }
+
+    .status-dot {
+      width: 10px; height: 10px;
+      background: #00ff88;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00ff88;
+      animation: blink 1s infinite;
+    }
+
+    .status-label {
+      font-size: 11px;
+      color: #00ff88;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Wallet Balance ── */
+    .balance-card {
+      background: linear-gradient(135deg, #111118 0%, #1a1a2e 100%);
+      border: 1px solid #f7931a44;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 14px;
+      text-align: center;
+      box-shadow: 0 0 30px #f7931a11;
+    }
+
+    .balance-label {
+      font-size: 11px;
+      color: #888;
+      letter-spacing: 3px;
+      margin-bottom: 6px;
+    }
+
+    .balance-amount {
+      font-size: 42px;
+      font-weight: bold;
+      color: #f7931a;
+      text-shadow: 0 0 20px #f7931a66;
+      letter-spacing: 1px;
+    }
+
+    .balance-usd {
+      font-size: 16px;
+      color: #00ff88;
+      margin-top: 4px;
+    }
+
+    /* ── Stats Grid ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat-card {
+      background: #111118;
+      border: 1px solid #00ff8822;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      color: #555;
+      letter-spacing: 2px;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      color: #00ff88;
+      font-weight: bold;
+    }
+
+    .stat-unit {
+      font-size: 10px;
+      color: #00ff8877;
+    }
+
+    /* ── Hash Rate Bar ── */
+    .hash-section {
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: 10px;
+      color: #555;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .bar-label { font-size: 11px; color: #888; width: 60px; flex-shrink: 0; }
+
+    .bar-track {
+      flex: 1;
+      height: 8px;
+      background: #1a1a1a;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #00ff88, #00ccff);
+      box-shadow: 0 0 6px #00ff8888;
+      transition: width 0.5s ease;
+    }
+
+    .bar-pct { font-size: 11px; color: #00ff88; width: 36px; text-align: right; }
+
+    /* ── Live Log ── */
+    .log-box {
+      flex: 1;
+      background: #060608;
+      border: 1px solid #00ff8811;
+      border-radius: 12px;
+      padding: 10px 12px;
+      overflow: hidden;
+      font-size: 10px;
+      color: #00ff8877;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .log-line { animation: fadeIn 0.3s ease; }
+    .log-line.found { color: #f7931a; font-weight: bold; }
+    .log-line.info  { color: #00ccff88; }
+
+    /* ── Mining Button ── */
+    .mine-btn {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, #f7931a, #e67e00);
+      color: #000;
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 3px;
+      border: none;
+      border-radius: 14px;
+      box-shadow: 0 0 30px #f7931a55;
+      animation: glow 2s infinite;
+      cursor: default;
+    }
+
+    /* ── Settings overlay ── */
+    #settings-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #settings-overlay.open { display: flex; }
+
+    .settings-panel {
+      background: #111118;
+      border: 1px solid #00ff8833;
+      border-radius: 20px;
+      padding: 30px 24px;
+      width: 320px;
+      max-width: 90vw;
+    }
+
+    .settings-panel h2 {
+      color: #f7931a;
+      font-size: 18px;
+      letter-spacing: 3px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #ffffff0d;
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    .toggle {
+      width: 42px; height: 24px;
+      background: #00ff88;
+      border-radius: 12px;
+      position: relative;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      top: 2px; right: 2px;
+      transition: right 0.2s;
+    }
+
+    #check-btc-btn {
+      width: 100%;
+      margin-top: 24px;
+      padding: 14px;
+      background: #1a1a2e;
+      color: #00ff88;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      letter-spacing: 2px;
+      border: 1px solid #00ff8844;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    #check-btc-btn:active { background: #00ff8822; }
+
+    .tap-hint {
+      font-size: 10px;
+      color: #333;
+      text-align: center;
+      margin-top: 8px;
+      letter-spacing: 1px;
+    }
+
+    #close-settings-x {
+      position: absolute;
+      top: 16px; right: 20px;
+      font-size: 22px;
+      color: #333;
+      cursor: pointer;
+      /* intentionally low contrast so it's hard to spot */
+    }
+
+    /* Settings gear — tiny and blended */
+    #gear-btn {
+      position: fixed;
+      bottom: 12px;
+      right: 14px;
+      font-size: 11px;
+      color: #1e1e28;       /* nearly invisible */
+      background: none;
+      border: none;
+      cursor: pointer;
+      z-index: 50;
+      letter-spacing: 1px;
+      padding: 6px;
+    }
+
+    /* ── Keyframes ── */
+    @keyframes pulse  { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+    @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes glow   { 0%,100%{box-shadow:0 0 30px #f7931a55} 50%{box-shadow:0 0 50px #f7931aaa} }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+  </style>
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+
+<div class="screen">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <span class="btc-icon">₿</span>
+      <div>
+        <div class="logo-text">BITMINER PRO</div>
+        <div class="logo-sub">NEURAL HASH ENGINE v4.2</div>
+      </div>
+    </div>
+    <div class="status-label">
+      <div class="status-dot"></div>
+      MINING ACTIVE
+    </div>
+  </div>
+
+  <!-- Balance -->
+  <div class="balance-card">
+    <div class="balance-label">TOTAL MINED</div>
+    <div class="balance-amount" id="btc-amount">0.00000000</div>
+    <div class="balance-usd" id="usd-amount">≈ $0.00 USD</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">HASH RATE</div>
+      <div class="stat-value" id="hashrate">142.7 <span class="stat-unit">TH/s</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">BLOCKS FOUND</div>
+      <div class="stat-value" id="blocks">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">EFFICIENCY</div>
+      <div class="stat-value">98.4 <span class="stat-unit">%</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">UPTIME</div>
+      <div class="stat-value" id="uptime">00:00:00</div>
+    </div>
+  </div>
+
+  <!-- Core Bars -->
+  <div class="hash-section">
+    <div class="section-title">PROCESSOR CORES</div>
+    <div class="bar-row">
+      <span class="bar-label">CORE 01</span>
+      <div class="bar-track"><div class="bar-fill" id="bar1" style="width:87%"></div></div>
+      <span class="bar-pct" id="pct1">87%</span>
+    </div>
+    <div class="bar-row">
+      <span class="bar-label">CORE 02</span>
+      <div class="bar-track"><div class="bar-fill" id="bar2" style="width:92%"></div></div>
+      <span class="bar-pct" id="pct2">92%</span>
+    </div>
+    <div class="bar-row">
+      <span class="bar-label">CORE 03</span>
+      <div class="bar-track"><div class="bar-fill" id="bar3" style="width:79%"></div></div>
+      <span class="bar-pct" id="pct3">79%</span>
+    </div>
+  </div>
+
+  <!-- Live Log -->
+  <div class="log-box" id="log-box"></div>
+
+  <!-- Mining Button -->
+  <button class="mine-btn" disabled>⛏&nbsp; MINING IN PROGRESS...</button>
+</div>
+
+<!-- Hidden gear -->
+<button id="gear-btn" onclick="openSettings()">⚙ settings</button>
+
+<!-- Settings Overlay -->
+<div id="settings-overlay">
+  <div class="settings-panel" style="position:relative">
+    <span id="close-settings-x" onclick="closeSettings()">✕</span>
+    <h2>⚙ SETTINGS</h2>
+
+    <div class="setting-row">
+      <span>Auto-withdraw</span><div class="toggle"></div>
+    </div>
+    <div class="setting-row">
+      <span>Turbo mode</span><div class="toggle"></div>
+    </div>
+    <div class="setting-row">
+      <span>Notifications</span><div class="toggle"></div>
+    </div>
+    <div class="setting-row">
+      <span>Dark theme</span><div class="toggle"></div>
+    </div>
+
+    <button id="check-btc-btn" onclick="checkBitcoin()">CHECK BITCOIN</button>
+    <div class="tap-hint" id="tap-hint">&nbsp;</div>
+  </div>
+</div>
+
+<script>
+  // ── Fullscreen on load ──────────────────────────────────────────────
+  window.addEventListener('load', () => {
+    const el = document.documentElement;
+    if (el.requestFullscreen)            el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  });
+
+  // Re-request fullscreen if user somehow exits
+  document.addEventListener('fullscreenchange',    recheckFullscreen);
+  document.addEventListener('webkitfullscreenchange', recheckFullscreen);
+  function recheckFullscreen() {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      setTimeout(() => {
+        const el = document.documentElement;
+        if (el.requestFullscreen)            el.requestFullscreen().catch(()=>{});
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      }, 500);
+    }
+  }
+
+  // Block back-swipe / context menus
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('touchmove',   e => { if (!e.target.closest('#log-box')) e.preventDefault(); }, { passive: false });
+
+  // ── Matrix rain ─────────────────────────────────────────────────────
+  const canvas = document.getElementById('matrix');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const cols  = Math.floor(canvas.width / 16);
+  const drops = Array(cols).fill(1);
+  function drawMatrix() {
+    ctx.fillStyle = 'rgba(0,0,0,0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#00ff88';
+    ctx.font = '13px monospace';
+    drops.forEach((y, i) => {
+      const ch = String.fromCharCode(0x30A0 + Math.random() * 96);
+      ctx.fillText(ch, i * 16, y * 16);
+      if (y * 16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    });
+  }
+  setInterval(drawMatrix, 50);
+
+  // ── State ────────────────────────────────────────────────────────────
+  let btc      = 0.00000000;
+  let blocks   = 0;
+  let seconds  = 0;
+  const BTC_PRICE = 67842;
+
+  // ── BTC counter ──────────────────────────────────────────────────────
+  setInterval(() => {
+    btc += 0.00000047 + Math.random() * 0.00000031;
+    document.getElementById('btc-amount').textContent = btc.toFixed(8);
+    document.getElementById('usd-amount').textContent =
+      '≈ $' + (btc * BTC_PRICE).toFixed(2) + ' USD';
+  }, 800);
+
+  // ── Hashrate jitter ──────────────────────────────────────────────────
+  setInterval(() => {
+    const base = 142.7;
+    const hr = (base + (Math.random() - 0.5) * 12).toFixed(1);
+    document.getElementById('hashrate').innerHTML = hr + ' <span class="stat-unit">TH/s</span>';
+  }, 1200);
+
+  // ── Core bars ────────────────────────────────────────────────────────
+  function jitterBar(barId, pctId, center) {
+    const v = Math.min(99, Math.max(55, center + (Math.random() - 0.5) * 18));
+    document.getElementById(barId).style.width  = v + '%';
+    document.getElementById(pctId).textContent  = Math.round(v) + '%';
+  }
+  setInterval(() => { jitterBar('bar1','pct1',87); jitterBar('bar2','pct2',92); jitterBar('bar3','pct3',79); }, 900);
+
+  // ── Uptime ───────────────────────────────────────────────────────────
+  setInterval(() => {
+    seconds++;
+    const h = String(Math.floor(seconds/3600)).padStart(2,'0');
+    const m = String(Math.floor((seconds%3600)/60)).padStart(2,'0');
+    const s = String(seconds%60).padStart(2,'0');
+    document.getElementById('uptime').textContent = `${h}:${m}:${s}`;
+  }, 1000);
+
+  // ── Live log ─────────────────────────────────────────────────────────
+  const logMessages = [
+    ['info',  'Connecting to pool stratum+tcp://btc.f2pool.com:3333...'],
+    ['info',  'Pool connection established. Latency: 12ms'],
+    ['info',  'Receiving work from pool...'],
+    [null,    'SHA-256 nonce scan: 0x00000000...'],
+    [null,    'Difficulty target: 0x00000000000000000007a4290000000000000000000000000000000000000000'],
+    ['found', '★ SHARE ACCEPTED — difficulty 32.41T'],
+    [null,    'Scanning block height #891,247...'],
+    [null,    'Hash: 3e8f2a1d9c0b7e4f6a2d8c1b5e9f3a7d'],
+    [null,    'Nonce: 0xA4F3B21E'],
+    [null,    'Rolling extranonce2: 000000aa → 000000ab'],
+    ['found', '★ SHARE ACCEPTED — difficulty 29.88T'],
+    [null,    'Thermal: 71°C — fan speed 2,340 rpm'],
+    ['info',  'Sync: chain tip at block 891,247'],
+    [null,    'Broadcast tx: 0xf4e3...b21a'],
+    ['found', '★ SHARE ACCEPTED — difficulty 31.05T'],
+    [null,    'Memory pool: 8,342 pending txs'],
+    [null,    'Network difficulty: 88.13T'],
+    [null,    'Est. time to block: 14d 06h 33m'],
+    ['info',  'Worker btcpro_ipad01 online'],
+    [null,    'Compact target: 0x170D21EE'],
+  ];
+  let logIdx = 0;
+  const logBox = document.getElementById('log-box');
+
+  function addLog() {
+    const [cls, msg] = logMessages[logIdx % logMessages.length];
+    logIdx++;
+    const line = document.createElement('div');
+    line.className = 'log-line' + (cls ? ' ' + cls : '');
+    const ts = new Date().toISOString().substr(11,8);
+    line.textContent = `[${ts}] ${msg}`;
+    logBox.appendChild(line);
+    // Keep last ~14 lines
+    while (logBox.children.length > 14) logBox.removeChild(logBox.firstChild);
+    // Occasional block found
+    if (Math.random() < 0.05) {
+      blocks++;
+      document.getElementById('blocks').textContent = blocks;
+      const found = document.createElement('div');
+      found.className = 'log-line found';
+      found.textContent = `[${ts}] ⚡ BLOCK FOUND! Reward: 0.00031250 BTC`;
+      logBox.appendChild(found);
+      btc += 0.00031250;
+    }
+  }
+  addLog();
+  setInterval(addLog, 1800);
+
+  // ── Settings / escape hatch ──────────────────────────────────────────
+  let checkCount = 0;
+
+  function openSettings() { document.getElementById('settings-overlay').classList.add('open'); }
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
+    checkCount = 0;
+    document.getElementById('tap-hint').textContent = '';
+  }
+
+  function checkBitcoin() {
+    checkCount++;
+    const remaining = 3 - checkCount;
+    if (remaining > 0) {
+      document.getElementById('tap-hint').textContent =
+        `tap ${remaining} more time${remaining > 1 ? 's' : ''} to verify...`;
+    } else {
+      // Exit: leave fullscreen and show a joke
+      if (document.exitFullscreen)            document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      document.body.innerHTML = `
+        <div style="background:#0a0a0f;color:#00ff88;font-family:monospace;
+                    height:100vh;display:flex;flex-direction:column;
+                    justify-content:center;align-items:center;gap:20px;padding:30px;text-align:center;">
+          <div style="font-size:60px">₿</div>
+          <div style="font-size:28px;color:#f7931a;">GOTCHA 😂</div>
+          <div style="font-size:14px;color:#888;line-height:1.8;">
+            No bitcoin was harmed<br>in the making of this prank.<br><br>
+            Your iPad is fine.
+          </div>
+        </div>`;
+    }
+  }
+</script>
+</body>
+</html>
