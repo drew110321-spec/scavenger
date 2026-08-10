@@ -268,6 +268,8 @@ body{
   transition:color 250ms ease,border-color 250ms ease;
 }
 #ui button:hover,#ui button:focus-visible{color:var(--leader);border-color:rgba(237,230,214,.6)}
+#ui button:disabled{opacity:.5;cursor:default}
+#ui button:disabled:hover{color:var(--slate);border-color:rgba(124,133,152,.32)}
 #ui button:focus-visible{outline:2px solid var(--flare);outline-offset:3px}
 
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -447,6 +449,7 @@ CREDITS.forEach(([role, who]) => {
    melody over the candle, and a warm chord to close.
    ============================================================ */
 let A = null, master = null, wet = null, muted = false;
+const VOL = 0.85;   // master level, with headroom under the limiter
 
 function midi(n){ return 440 * Math.pow(2, (n - 69) / 12); }
 
@@ -456,7 +459,7 @@ function initAudio(){
   let a;
   try { a = new AC(); } catch (e){ return null; }
 
-  master = a.createGain(); master.gain.value = 0.9;
+  master = a.createGain(); master.gain.value = VOL;
   const comp = a.createDynamicsCompressor();
   comp.threshold.value = -14; comp.ratio.value = 4; comp.release.value = .3;
   master.connect(comp); comp.connect(a.destination);
@@ -518,6 +521,76 @@ function timpani(t, freq = 62, gain = .55){
   const s = A.createGain(); s.gain.value = .5; g.connect(s); s.connect(wet);
   osc.start(t); osc.stop(t + 1.6);
   noise(t, .28, { freq: 220, q: .5, gain: gain * .32, type: "lowpass", send: .3 });
+}
+
+/* the projector itself: motor hum and shutter flutter behind the leader */
+function projector(t, dur){
+  const len = Math.floor(A.sampleRate * dur);
+  const b = A.createBuffer(1, len, A.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const src = A.createBufferSource(); src.buffer = b;
+  const f = A.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 720; f.Q.value = .7;
+  const g = A.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(.05, t + .3);
+  g.gain.setValueAtTime(.05, t + dur - .5);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  const lfo = A.createOscillator(); lfo.type = "triangle"; lfo.frequency.value = 24;
+  const lg = A.createGain(); lg.gain.value = .022;
+  lfo.connect(lg); lg.connect(g.gain);
+  lfo.start(t); lfo.stop(t + dur);
+  src.connect(f); f.connect(g); g.connect(master);
+  src.start(t); src.stop(t + dur);
+  voice(t, midi(36), dur - .3, { type: "triangle", gain: .02, atk: .5, rel: .5, send: .2 });
+}
+
+/* air moving across a cut */
+function whoosh(t, dur = .9, gain = .10){
+  const len = Math.floor(A.sampleRate * (dur + .1));
+  const b = A.createBuffer(1, len, A.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const src = A.createBufferSource(); src.buffer = b;
+  const f = A.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 1.5;
+  f.frequency.setValueAtTime(260, t);
+  f.frequency.exponentialRampToValueAtTime(3200, t + dur * .68);
+  f.frequency.exponentialRampToValueAtTime(620, t + dur);
+  const g = A.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain, t + dur * .55);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f); f.connect(g); g.connect(master);
+  const w = A.createGain(); w.gain.value = .5; g.connect(w); w.connect(wet);
+  src.start(t); src.stop(t + dur + .1);
+}
+
+/* the breath that puts the candle out */
+function puff(t){
+  const dur = .5;
+  const len = Math.floor(A.sampleRate * (dur + .1));
+  const b = A.createBuffer(1, len, A.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const src = A.createBufferSource(); src.buffer = b;
+  const f = A.createBiquadFilter(); f.type = "lowpass"; f.Q.value = .9;
+  f.frequency.setValueAtTime(2600, t);
+  f.frequency.exponentialRampToValueAtTime(320, t + dur);
+  const g = A.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(.20, t + .045);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f); f.connect(g); g.connect(master);
+  const w = A.createGain(); w.gain.value = .35; g.connect(w); w.connect(wet);
+  src.start(t); src.stop(t + dur + .1);
+}
+
+/* the wick catching */
+function crackle(t){
+  for (let i = 0; i < 8; i++){
+    noise(t + Math.random() * .4, .045,
+      { freq: 1700 + Math.random() * 2600, q: 2.2, gain: .045, send: .45 });
+  }
 }
 
 function drone(t, dur, root = 55){
@@ -596,12 +669,12 @@ const MELODY = [
   [67,.5],[67,.5],[79,1],[76,1],[72,1],[71,1],[69,2],
   [77,.5],[77,.5],[76,1],[72,1],[74,1],[72,2.5]
 ];
-function playMelody(t0, bpm = 84){
+function playMelody(t0, bpm = 84, gain = .18){
   const b = 60 / bpm;
   let t = t0;
   MELODY.forEach(([n, d]) => {
-    chime(t, n, .18);
-    if (n !== 67 || Math.random() > .5) chime(t + .004, n - 12, .05);
+    chime(t, n, gain);
+    if (n !== 67 || Math.random() > .5) chime(t + .004, n - 12, gain * .28);
     t += d * b;
   });
   return t - t0;
@@ -983,28 +1056,39 @@ function scheduleScore(){
   audioT0 = t;
 
   drone(t, 30, 43);                                  // low bed under the leader + intertitles
+  projector(t + .05, 4.1);                           // motor hum and shutter behind the countdown
   [0, 1, 2, 3].forEach(i => {
     voice(t + i, 1000, .045, { type: "sine", gain: .12, atk: .002, rel: .05, send: .15 });
   });
   noise(t + 4.0, .5, { freq: 1800, q: .3, gain: .10, type: "highpass", send: .6 });
 
-  [13.0, 16.2, 20.0, 24.0].forEach((c, i) => timpani(t + c, 58 - i * 3, .42 + i * .06));
+  [13.0, 16.2, 20.0, 24.0].forEach((c, i) => {
+    whoosh(t + c - .55, .8, .085);                   // air across each cut
+    timpani(t + c, 58 - i * 3, .42 + i * .06);
+  });
 
   riser(t + 24.2, 4.4);
   stinger(t + 28.7);
   pad(t + 29.2, 7.0, [48, 55, 64, 67], .045);
 
+  pad(t + 34.8, 6.0, [43, 50, 55], .032);            // bridge, so the cut to the candle isn't a hole
+  whoosh(t + 36.9, 1.1, .06);
+  crackle(t + 37.9);                                 // the wick catching
+
   const melLen = playMelody(t + 38.6, 84);           // the birthday tune, on a music box
   pad(t + 38.4, melLen + 3, [48, 55, 64], .036);
 
+  puff(t + 46.55);                                   // the breath
   chime(t + 46.7, 84, .10);                          // the wish
   noise(t + 46.6, .55, { freq: 2600, q: .6, gain: .10, type: "bandpass", send: .7 });
 
   pad(t + 50.4, 20, [43, 50, 59, 62], .034);
   drone(t + 50.0, 22, 43);
+  playMelody(t + 57.2, 66, .085);                    // a slower reprise under the credits
 
   stinger(t + 70.3);
   pad(t + 70.4, 12, [36, 48, 55, 64, 67, 74], .05);
+  [79, 84, 88].forEach((n, i) => chime(t + 71.6 + i * .42, n, .085));
 }
 
 let audioT0 = 0;
@@ -1058,8 +1142,7 @@ function play(){
   started = true;
 
   A = A || initAudio();
-  if (A && A.state === "suspended") A.resume();
-  if (master) master.gain.value = muted ? 0 : .9;
+  if (master) master.gain.value = muted ? 0 : VOL;
 
   document.getElementById("start").style.opacity = "0";
   setTimeout(() => document.getElementById("start").setAttribute("hidden", ""), 900);
@@ -1077,11 +1160,27 @@ function play(){
   scene = "idle";
 
   buildCues();
-  try { scheduleScore(); } catch (e){ /* the picture plays on without the score */ }
 
-  t0 = performance.now(); last = t0;
-  cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(frame);
+  const begin = () => {
+    t0 = performance.now(); last = t0;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(frame);
+  };
+
+  // the score is scheduled against the audio clock, which only advances once the
+  // context is running — so wait for it, but never let a stuck context hold the picture
+  const ready = (A && A.state === "suspended")
+    ? Promise.race([A.resume().catch(() => {}), new Promise(r => setTimeout(r, 500))])
+    : Promise.resolve();
+
+  ready.then(() => {
+    if (!A) setAudioAvailable(false);
+    else {
+      try { scheduleScore(); setAudioAvailable(true); }
+      catch (e){ setAudioAvailable(false); }   // the picture plays on without the score
+    }
+    begin();
+  });
 }
 
 function replay(){
@@ -1097,9 +1196,20 @@ startBtn.addEventListener("click", play);
 document.getElementById("replay").addEventListener("click", replay);
 
 const muteBtn = document.getElementById("mute");
+let audioOK = true;
+
+/* say plainly when the browser won't give us sound, rather than showing a dead control */
+function setAudioAvailable(ok){
+  audioOK = ok;
+  muteBtn.disabled = !ok;
+  muteBtn.textContent = ok ? (muted ? "Sound off" : "Sound on") : "No sound";
+  if (!ok) muteBtn.title = "This browser blocked audio playback";
+}
+
 function toggleMute(){
+  if (!audioOK) return;
   muted = !muted;
-  if (master) master.gain.value = muted ? 0 : .9;
+  if (master) master.gain.value = muted ? 0 : VOL;
   muteBtn.textContent = muted ? "Sound off" : "Sound on";
 }
 muteBtn.addEventListener("click", toggleMute);
