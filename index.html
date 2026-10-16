@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#05030a">
+  <title>Nebula</title>
+  <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGRlZnM+PHJhZGlhbEdyYWRpZW50IGlkPSJuIiBjeD0iNDIlIiBjeT0iMzglIiByPSI3MCUiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2U3ZGJmZiIvPjxzdG9wIG9mZnNldD0iLjQ1IiBzdG9wLWNvbG9yPSIjYTQ4N2Y2Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMmUxYzU0Ii8+PC9yYWRpYWxHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzA1MDMwYSIvPjxjaXJjbGUgY3g9IjE1IiBjeT0iMTUiIHI9IjguNSIgZmlsbD0idXJsKCNuKSIvPjxlbGxpcHNlIGN4PSIxNiIgY3k9IjE2IiByeD0iMTMiIHJ5PSI0LjgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2E0ODdmNiIgc3Ryb2tlLW9wYWNpdHk9Ii42IiBzdHJva2Utd2lkdGg9IjEuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDE2IDE2KSIvPjxjaXJjbGUgY3g9IjI3IiBjeT0iOSIgcj0iMS42IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNiIgY3k9IjIyIiByPSIxIiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuOCIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjUiIHI9Ii44IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuNyIvPjwvc3ZnPg==">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="booting">
+  <div class="space" aria-hidden="true">
+    <canvas id="wallpaper"></canvas>
+    <canvas id="stars"></canvas>
+  </div>
+
+  <main id="desktop">
+    <div id="icons" class="icons" role="list" aria-label="Desktop"></div>
+    <div id="snap" class="snap" hidden></div>
+  </main>
+
+  <div id="start" class="flyout start" role="dialog" aria-label="Start" hidden></div>
+  <div id="qs" class="flyout qs" role="dialog" aria-label="Quick settings" hidden></div>
+  <div id="cal" class="flyout cal" role="dialog" aria-label="Calendar" hidden></div>
+
+  <footer id="taskbar" class="taskbar">
+    <div class="tb-center">
+      <button id="start-btn" class="tb-btn start-btn" type="button" title="Start" aria-label="Start"></button>
+      <div id="task-apps" class="tb-apps"></div>
+    </div>
+    <div class="tray">
+      <button id="qs-btn" class="tray-btn" type="button" title="Quick settings" aria-label="Quick settings">
+        <span id="net-ico" class="tray-ico"></span>
+        <span id="bat-ico" class="tray-ico" hidden></span>
+      </button>
+      <button id="clock-btn" class="tray-btn clock" type="button" aria-label="Clock and calendar">
+        <span id="clock-time"></span>
+        <span id="clock-date"></span>
+      </button>
+      <button id="show-desktop" class="show-desktop" type="button" title="Show desktop" aria-label="Show desktop"></button>
+    </div>
+  </footer>
+
+  <div id="lock" class="lock" hidden>
+    <div class="lock-time"></div>
+    <div class="lock-date"></div>
+    <div class="lock-hint">Click or press any key to unlock</div>
+  </div>
+  <div id="night" class="night" hidden></div>
+  <div id="dim" class="dim"></div>
+
+  <script src="library.js"></script>
+  <script src="wallpaper.js"></script>
+  <script src="ai.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
