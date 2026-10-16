@@ -3,6 +3,29 @@
 A Windows 11-style desktop in the browser, with a black and purple space theme. It holds games and a set of AI assistants.
 The Games app is yours to fill; the AI app has built-in assistants ready to go.
 
+---
+
+## 🔁 How to update everyone (the important part)
+
+`Nebula.html` is one file you hand out. It pulls its code from this branch on every open, so **you fix things here once and everyone gets it next time they open their file — no re-sending.**
+
+**Update source (baked into the file):**
+```
+https://raw.githubusercontent.com/drew110321-spec/scavenger/nebula/
+```
+
+**To push a change to everyone:**
+1. Edit a source file on the **`nebula`** branch of this repo (`library.js`, `app.js`, `ai.js`, etc.) and commit it.
+2. That's it — every copy of `Nebula.html` picks it up on next open.
+
+**Re-run `node build.js`** only to refresh the *offline* snapshot (what people see with no connection), or if you change the wrapper/boot logic itself. Everyday content changes don't need it.
+
+**If the Orbit game's AI stops working** (its keys aren't yours and can't be rotated), just edit `orbit/index.html` here and push — the fix reaches everyone the same way.
+
+> Obfuscation on the keys is a speed bump, not real secrecy. Anything in a public repo is effectively public.
+
+---
+
 ## Open it
 
 Double-click `index.html`. There's no install or build step.
