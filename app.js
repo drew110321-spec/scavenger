@@ -951,14 +951,38 @@
       grid);
   }
 
+  // A game/app may be packed into this file as base64 in a <script type="text/plain">
+  // (its id is on item.embed). Open it with srcdoc so it runs same-origin and its
+  // saved data stays in this browser. A plain url is loaded as-is.
+  function embeddedHtml(item) {
+    if (!item || !item.embed) return "";
+    if (item._html != null) return item._html;
+    const node = document.getElementById(item.embed);
+    let html = "";
+    if (node) {
+      try {
+        const bin = atob(String(node.textContent).replace(/\s+/g, ""));
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        html = new TextDecoder().decode(bytes);
+      } catch (e) { html = ""; }
+    }
+    item._html = html;
+    return html;
+  }
+
   function openItem(key, item, i) {
     remember({ kind: "item", section: key, id: itemId(item, i) });
+    const embedded = embeddedHtml(item);
+    const frame = embedded
+      ? h("iframe", { class: "app-frame", srcdoc: embedded, title: item.title || "App", allow: "fullscreen; autoplay; gamepad; clipboard-write; microphone", allowfullscreen: true })
+      : h("iframe", { class: "app-frame", src: item.url, title: item.title || "App", allow: "fullscreen; autoplay; gamepad; clipboard-write; microphone", allowfullscreen: true });
     openWindow({
       key: `item:${key}:${itemId(item, i)}`,
       title: item.title || "Untitled",
       art: (s) => itemArt(item, s),
-      body: h("iframe", { class: "app-frame", src: item.url, title: item.title || "App", allow: "fullscreen; autoplay; gamepad; clipboard-write; microphone", allowfullscreen: true }),
-      popout: () => item.url,
+      body: frame,
+      popout: () => embedded ? URL.createObjectURL(new Blob([embedded], { type: "text/html" })) : item.url,
       width: 960,
       height: 620
     });
