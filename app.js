@@ -209,7 +209,18 @@
     const ctrls = h("div", { class: "win-ctrls" },
       opts.popout && h("button", {
         class: "wc", type: "button", title: "Open in a new browser tab", "aria-label": "Open in a new browser tab", html: ICONS.external,
-        onclick: () => { const url = opts.popout(); if (url) window.open(url, "_blank", "noopener"); }
+        onclick: () => {
+          const out = opts.popout(); if (!out) return;
+          const win = window.open("about:blank", "_blank");
+          if (!win) return; // popup blocked
+          let doc = out.html;
+          if (!doc && out.url) {
+            doc = '<!doctype html><meta charset="utf-8"><title>Nebula</title>'
+              + '<style>html,body{margin:0;height:100%;overflow:hidden;background:#05030a}iframe{border:0;display:block;width:100vw;height:100vh}</style>'
+              + '<iframe src="' + String(out.url).replace(/"/g, "&quot;") + '" allow="fullscreen; autoplay; gamepad; clipboard-write; microphone" allowfullscreen></iframe>';
+          }
+          try { win.document.open(); win.document.write(doc || ""); win.document.close(); } catch (e) {}
+        }
       }),
       h("button", { class: "wc", type: "button", title: "Minimize", "aria-label": "Minimize", html: ICONS.min, onclick: () => minimize(w) }),
       w.maxBtn,
@@ -982,7 +993,7 @@
       title: item.title || "Untitled",
       art: (s) => itemArt(item, s),
       body: frame,
-      popout: () => embedded ? URL.createObjectURL(new Blob([embedded], { type: "text/html" })) : item.url,
+      popout: () => embedded ? { html: embedded } : { url: item.url },
       width: 960,
       height: 620
     });
